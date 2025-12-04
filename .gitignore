@@ -9,6 +9,3 @@ __pycache__/
 
 # Ignore environment files
 .env
-
-# Ignore streamlit specific files
-.streamlit/
