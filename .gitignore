@@ -1,0 +1,14 @@
+# Ignore PDF and docs
+PROJECT PITCH.pdf
+
+# Ignore Python cache and Jupyter checkpoints
+__pycache__/
+*.pyc
+*.pyo
+*.ipynb_checkpoints/
+
+# Ignore environment files
+.env
+
+# Ignore streamlit specific files
+.streamlit/
