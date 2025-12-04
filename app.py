@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import requests
 import os
 from airport_data import IATA_LABELS, IATA_COORDS, MAD_COORDS
+import streamlit as st
 
 # Make sure we load .env from the same folder as config.py or from the project root just above it
 HERE = Path(__file__).resolve().parent
@@ -16,18 +17,26 @@ env_path = HERE / ".env"
 if not env_path.exists():
     env_path = HERE.parent / ".env"
 
+# Cargar .env 
 load_dotenv(dotenv_path=env_path)
 
-AVIATIONSTACK_API_KEY = os.getenv("AVIATIONSTACK_API_KEY")
-AVIATIONEDGE_API_KEY = os.getenv("AVIATIONEDGE_API_KEY")
+#  (Priority: Cloud > Local) ---
+def get_key(key_name, default=None):
+    #Streamlit Secrets (cloud)
+    if key_name in st.secrets:
+        return st.secrets[key_name]
+    return os.getenv(key_name, default)
 
+AVIATIONSTACK_API_KEY = get_key("AVIATIONSTACK_API_KEY")
+AVIATIONEDGE_API_KEY = get_key("AVIATIONEDGE_API_KEY")
+
+WEATHER_API_KEY =  get_key("WEATHER_API_KEY")
+
+# URLs 
 AVIATIONSTACK_BASE_URL = "http://api.aviationstack.com/v1"
 AVIATIONEDGE_BASE_URL = "https://aviation-edge.com/v2/public"
-
-if not AVIATIONSTACK_API_KEY:
-    print("Warning: Missing AVIATIONSTACK_API_KEY in .env")
-if not AVIATIONEDGE_API_KEY:
-    print("Warning: Missing AVIATIONEDGE_API_KEY in .env")
+WEATHER_BASE_URL = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/"
+WEATHER_LOCATION = "LEMD"   # Madrid-Barajas
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -205,10 +214,6 @@ def add_model_predictions(df_filtered: pd.DataFrame) -> pd.DataFrame:
     df["model_delay_prob"] = probs
     return df
 
-# Fetch current weather at MAD using Visual Crossing API
-WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
-WEATHER_BASE_URL = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/"
-WEATHER_LOCATION = "LEMD"   # Madrid-Barajas
 
 def _map_cond_grouped(text: str) -> str:
     """Map Visual Crossing conditions to cond_grouped categories."""
