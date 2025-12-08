@@ -22,14 +22,15 @@ def ensure_raw_data_exists():
     """
     Check if raw CSV files exist, if not run unify_data.py to generate them.
     """
-    flights_csv = FIRST_BLOCK / "flights_data_raw.csv"
-    arrivals_csv = FIRST_BLOCK / "arrivals_conplete_data_raw.csv"
+    data_folder = FIRST_BLOCK / "data"
+    flights_csv = data_folder / "flights_data_raw.csv"
+    arrivals_csv = data_folder / "arrivals_complete_data_raw.csv"
     
     missing = []
     if not flights_csv.exists():
         missing.append("flights_data_raw.csv")
     if not arrivals_csv.exists():
-        missing.append("arrivals_conplete_data_raw.csv")
+        missing.append("arrivals_complete_data_raw.csv")
     
     if missing:
         print(f"Missing files: {missing}")
@@ -122,10 +123,10 @@ def analyze_target_variable(df):
     if not extreme_delays.empty:
         print(f"WARNING: Found {len(extreme_delays)} flights with > 1000 min delay. Verify units.")
 
-    # Delay > 15 minutes is "Late"
-    df['is_delayed_15'] = df['dep_delay'] > 15
-    class_balance = df['is_delayed_15'].value_counts(normalize=True) * 100
-    print("\nClass Balance (Threshold > 15 mins):")
+    # Delay >= 25 minutes is "Late"
+    df['is_delayed_25'] = df['dep_delay'] >= 25
+    class_balance = df['is_delayed_25'].value_counts(normalize=True) * 100
+    print("\nClass Balance (Threshold >= 25 mins):")
     print(class_balance)
 
     # Visualization
@@ -385,25 +386,22 @@ def load_and_clean_arrivals(filepath):
 
     # Similar to departures, we must identify the unique physical landing.
     # Key: Scheduled Arrival Time + Tail Number
-
-    # Handle Missing Gates
-    # If we don't know the gate, we can't link the data.
-    df = df.dropna(subset=['arr_gate'])
-    # We can't have nulls for the join
+    
+    # We can't have nulls for the time though
     df = df.dropna(subset=['arr_actual_time'])
 
     # Handle Codeshares
     # The unique physical event is a landing at a specific gate at a specific time
-    df.sort_values(by=['arr_scheduled_time', 'arr_gate', 'airline_iata'],
+    df.sort_values(by=['arr_scheduled_time', 'airline_iata'],
                    inplace=True)
 
     # Deduplicate
-    subset_cols = ['arr_scheduled_time', 'arr_gate']
+    subset_cols = ['arr_scheduled_time', 'dep_iata']
     df_unique = df.drop_duplicates(subset=subset_cols, keep='first')
 
     print(f"Arrivals loaded: {original_count}")
-    print(f"Rows with valid Gate info: {len(df)}")
-    print(f"Unique physical arrivals (Gate/Time): {len(df_unique)}")
+    print(f"Rows with valid actual time: {len(df)}")
+    print(f"Unique physical arrivals: {len(df_unique)}")
 
     # Date Normalization
     date_cols = ['arr_scheduled_time', 'arr_actual_time']
@@ -634,10 +632,10 @@ if __name__ == "__main__":
     # Ensure raw data CSVs exist (generate if needed)
     ensure_raw_data_exists()
     
-    # Paths to data files in FIRST BLOCK
-    flights_path = FIRST_BLOCK / 'flights_data_raw.csv'
-    weather_path = FIRST_BLOCK / 'weather_data_raw.csv'
-    arrivals_path = FIRST_BLOCK / 'arrivals_complete_data_raw.csv'
+    # Paths to data files in FIRST BLOCK/data
+    flights_path = FIRST_BLOCK / "data" / 'flights_data_raw.csv'
+    weather_path = FIRST_BLOCK / "data" / 'weather_data_raw.csv'
+    arrivals_path = FIRST_BLOCK / "data" / 'arrivals_complete_data_raw.csv'
 
     # Load & Clean Flights
     df_flights = load_and_clean_data(flights_path)
@@ -693,6 +691,9 @@ if __name__ == "__main__":
         df_main = add_occupancy_features(df_main, df_arrivals)
     else:
         print("Skipping occupancy features: Arrivals data missing.")
+
+    # Add target variable (delay >= 25 min) as last column
+    df_main['is_delayed_25'] = df_main['dep_delay'] >= 25
 
     print(f"\nFinal Dataset Columns: {df_main.columns.tolist()}")
     df_main.to_csv("filtered_flights_data.csv", index=False)
